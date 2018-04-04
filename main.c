@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include "peripherals.h"
 
+/*
 unsigned long gallons=0;
 
 void swDelay(char numLoops)
@@ -49,7 +50,7 @@ void config_board_buttons(void)
 
   P7OUT |= (BIT0|BIT4);
   P3OUT |= (BIT6);
-  P2OUT |= (BIT2)
+  P2OUT |= (BIT2);
 }
 
 //return the state of the buttons
@@ -255,7 +256,7 @@ void pay(unsigned char pin[], unsigned char currKey)
         {
           x = x^15;
           BuzzerOn();
-          setLeds(x);
+          //setLeds(x);
         }
       }
       currKey = getKey();
@@ -310,7 +311,7 @@ void main(void)
   WDTCTL = WDTPW | WDTHOLD;
 
   configDisplay();
-  initLeds();
+  //initLeds();
   configKeypad();
   config_board_buttons();
   config_msp_buttons();
@@ -322,7 +323,7 @@ void main(void)
   {
     welcome_screen();
 
-    wait_for_response(currKey);
+    //wait_for_response(currKey);
 
     grade = select_grade(grade);
     pump_ready(grade);
@@ -336,4 +337,21 @@ void main(void)
     pay(pin, currKey);
     Graphics_clearDisplay(&g_sContext);
   }
+}
+*/
+int main(){
+    WDTCTL = WDTPW | WDTHOLD;
+    initLeds();
+    setLeds(0x01);
+    configDisplay();
+    while (1)
+    {
+        Graphics_drawStringCentered(&g_sContext, "INCORRECT",
+                                    AUTO_STRING_LENGTH, 48, 65, OPAQUE_TEXT);
+        Graphics_drawStringCentered(&g_sContext, "ENTER AGAIN",
+                                    AUTO_STRING_LENGTH, 48, 75, OPAQUE_TEXT);
+        Graphics_flushBuffer(&g_sContext);
+    }
+
+    return 0;
 }
