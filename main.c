@@ -2,8 +2,22 @@
 #include <stdlib.h>
 #include "peripherals.h"
 
-/*
-unsigned long gallons=0;
+
+unsigned long milli_gallons=0, millis=0;
+unsigned int leap_cnt;
+bool dispense_gas=false;
+
+void wait_for_response(currKey)
+{
+    while(1)
+    {
+        currKey = getKey();
+        if (currKey == '*')
+        {
+            break;
+        }
+    }
+}
 
 void swDelay(char numLoops)
 {
@@ -79,19 +93,19 @@ void display_cost(unsigned char priceString[], unsigned char grade)
 
   if(grade == 'D')
   {
-    price = (gallons * 299)/100;
+    price = (milli_gallons * 299)/100;
   }
   else if(grade == 'S')
   {
-    price = (gallons * 289)/100;
+    price = (milli_gallons * 289)/100;
   }
   else if(grade == 'P')
   {
-    price = (gallons * 269)/100;
+    price = (milli_gallons * 269)/100;
   }
   else
   {
-    price = (gallons * 249)/100;
+    price = (milli_gallons * 249)/100;
   }
 
   convert_price(priceString, price);
@@ -163,24 +177,42 @@ void welcome_screen(void)
 
 
 //return grade as D, S, P, or R
+//return grade as D, S, P, or R
 unsigned char select_grade(unsigned char grade)
 {
-  //set grade = 'D'
+  Graphics_clearDisplay(&g_sContext); // Clear the display
+  Graphics_drawStringCentered(&g_sContext, "Fuel Grades", AUTO_STRING_LENGTH, 48, 15, TRANSPARENT_TEXT);
+  Graphics_drawStringCentered(&g_sContext, "D  S  P  R", AUTO_STRING_LENGTH, 48, 25, TRANSPARENT_TEXT);
+  Graphics_drawStringCentered(&g_sContext, "1  2  3  4", AUTO_STRING_LENGTH, 48, 45, TRANSPARENT_TEXT);
+  Graphics_flushBuffer(&g_sContext); // show LCD changes
+  while(1){
+    if(buttons_state() == BIT0){
+      grade = 'D';
+      break;
+    }
+    if(buttons_state() == BIT1){
+      grade = 'S';
+      break;
+    }
+    if(buttons_state() == BIT2){
+      grade = 'P';
+      break;
+    }
+    if(buttons_state() == BIT3){
+      grade = 'R';
+      break;
+    }
+  }
 }
+
 
 //start timer
 void runtimerA2(void)
 {
-  // This function configures and starts Timer A2
-  // Timer is counting ~0.01 seconds
-  //
-  // Input: none, Output: none
-  //
-  // smj, ECE2049, 17 Sep 2013
-  //
-  // Use ACLK, 16 Bit, up mode, 1 divider
+
+  // ACLK|16 Bit|up mode|1 divider
   TA2CTL = TASSEL_1 + MC_1 + ID_0;
-  TA2CCR0 = 327; // 327+1 = 328 ACLK tics = ~1/100 seconds
+  TA2CCR0 = 327; // 327+1 ticks is about .01 seconds
   TA2CCTL0 = CCIE; // TA2CCR0 interrupt enabled
 }
 
@@ -188,7 +220,18 @@ void runtimerA2(void)
 #pragma vector=TIMER2_A0_VECTOR
 __interrupt void TimerA2_ISR(void)
 {
-  //increment gallons, probably want leap counter
+  if(leap_cnt<65536) //CHECK IF THIS NUMBER IS CORRECT
+  {
+      if(dispense_gas){
+          milli_gallons++;
+      }
+    millis++;
+    leap_cnt++;
+  }
+  else
+  {
+    leap_cnt = 0;
+  }
 }
 
 // This function stops Timer A2 andresets the global gallons variable
@@ -198,11 +241,12 @@ void stoptimerA2(int reset)
   TA2CTL = MC_0; // stop timer
   TA2CCTL0 &= ~CCIE; // TA2CCR0 interrupt disabled
   if(reset){
-  gallons=0;
+  milli_gallons=0;
+  millis=0;
 }
 }
 
-//display gallons
+//display milli_gallons
 void display_gallons(unsigned int gallons)
 {
   unsigned char display[6];
@@ -219,30 +263,106 @@ void display_gallons(unsigned int gallons)
 }
 
 //gets values from pump to be ready
+//gets values from pump to be ready
 void pump_ready(unsigned char grade)
 {
   //can call display gallons function
   //probably want to use interrupt with counter to call display gallons
   //need to get time button has been pressed
   //allow for topping off
+
+    stoptimerA2(1);
+  Graphics_clearDisplay(&g_sContext);
+  Graphics_drawStringCentered(&g_sContext, "Begin fueling", AUTO_STRING_LENGTH, 48, 35, TRANSPARENT_TEXT);
+  Graphics_flushBuffer(&g_sContext);
+    if (grade == 'D')
+    {
+        dispense_gas = true;
+        while (1)
+        {
+            if (P2IN | (~BIT1))
+            {
+                //gallons = timeOut;
+                runtimerA2();
+                while ((P2IN | (~BIT1)))
+                {
+                    if (milli_gallons % 2 == 0)
+                    {
+                        display_gallons(milli_gallons);
+                    }
+                    //timeOut = gallons;
+                }
+                stoptimerA2(0);
+                dispense_gas = false;
+                // gallons = timeOut;
+                break;
+
+            }
+//            if ((P2IN & BIT1))
+//            {
+//                stoptimerA2(0);
+//                dispense_gas=false;
+//                // gallons = timeOut;
+//                break;
+//            }
+
+        }
+    }
+    else
+    {
+        dispense_gas = true;
+        while (1)
+        {
+            if ((P1IN & BIT1)==0)
+            {
+                //gallons = timeOut;
+                runtimerA2();
+                while ((P1IN & BIT1)==0)
+                {
+                    if (milli_gallons % 2 == 0)
+                    {
+                        display_gallons(milli_gallons);
+                    }
+                    //timeOut = gallons;
+                }
+
+            }
+            if ((P1IN & BIT1))
+            {
+                stoptimerA2(0);
+                dispense_gas = false;
+                // gallons = timeOut;
+                break;
+            }
+
+        }
+
+    }
+
 }
+
 
 void pay(unsigned char pin[], unsigned char currKey)
 {
   unsigned char pin1[8] = {'1', '2', '3', '4', '5', '6', '7', '8'};
   unsigned char pin2[8] = {'8', '7', '6', '5', '4', '3', '2', '1'};
+  unsigned char displayed_pin[8];
   int i;
   int count = 0;
-  int x = 15;
+  int led_vals = 0xF;
   int correctPin1;
   int correctPin2;
+  //gets the pin inputted to display as X's
+  for(i=0; i<8; i++){
+      displayed_pin[i]=' ';
+  }
 
   Graphics_drawStringCentered(&g_sContext, "ENTER PIN", AUTO_STRING_LENGTH, 48, 65, TRANSPARENT_TEXT);
   Graphics_flushBuffer(&g_sContext);
 
   while(1)
   {
-    gallons = 0;
+    milli_gallons = 0;
     runtimerA2();
     correctPin1 = 1;
     correctPin2 = 1;
@@ -250,26 +370,28 @@ void pay(unsigned char pin[], unsigned char currKey)
 
     while(i<8)
     {
-      if((gallons>100)|(count>2))
+      if((milli_gallons>100)&&(count>2))
       {
-        if((gallons%4)==0)
+        if((milli_gallons%4)==0)
         {
-          x = x^15;
+          led_vals = led_vals^0xF;
           BuzzerOn();
-          //setLeds(x);
+          setLeds(led_vals);
         }
       }
       currKey = getKey();
       if((currKey >= '0') && (currKey <= '9'))
       {
         pin[i] = currKey;
+        displayed_pin[i]='X';
         i++;
         while(getKey() != 0){}
         currKey = 0;
-        gallons = 0;
+        milli_gallons = 0;
       }
+      Graphics_drawStringCentered(&g_sContext, displayed_pin, 8, 48, 75, TRANSPARENT_TEXT);
+      Graphics_flushBuffer(&g_sContext);
     }
-
     for(i=0;i<8;i++)
     {
       if(pin[i] != pin1[i])
@@ -287,12 +409,18 @@ void pay(unsigned char pin[], unsigned char currKey)
     {
       BuzzerOff();
       setLeds(0);
+      //jumps out of the while loop
       break;
     }
     else
     {
-      Graphics_drawStringCentered(&g_sContext, "INCORRECT", AUTO_STRING_LENGTH, 48, 65, OPAQUE_TEXT);
-      Graphics_drawStringCentered(&g_sContext, "ENTER AGAIN", AUTO_STRING_LENGTH, 48, 75, OPAQUE_TEXT);
+        for (i = 0; i < 8; i++)
+        {
+            displayed_pin[i] = ' ';
+        }
+      Graphics_drawStringCentered(&g_sContext, "INCORRECT", AUTO_STRING_LENGTH, 48, 85, OPAQUE_TEXT);
+      Graphics_drawStringCentered(&g_sContext, displayed_pin, 8, 48, 75, OPAQUE_TEXT);
+      // Graphics_drawStringCentered(&g_sContext, "ENTER AGAIN", AUTO_STRING_LENGTH, 48, 75, OPAQUE_TEXT);
       Graphics_flushBuffer(&g_sContext);
       count++;
     }
@@ -321,9 +449,21 @@ void main(void)
 
   while(1)
   {
+    //resets the globals
+    for(i=0; i<8; i++){
+        pin[i]=NULL;
+    }
+    for(i=0; i<10; i++){
+        priceString[i]=NULL;
+    }
+    grade=0;
+    currKey=0;
+    milli_gallons=0;
+
+    //show the welcome
     welcome_screen();
 
-    //wait_for_response(currKey);
+    wait_for_response(currKey);
 
     grade = select_grade(grade);
     pump_ready(grade);
@@ -338,8 +478,8 @@ void main(void)
     Graphics_clearDisplay(&g_sContext);
   }
 }
-*/
-int main(){
+
+/*int main(){
     WDTCTL = WDTPW | WDTHOLD;
     initLeds();
     setLeds(0x01);
@@ -354,4 +494,4 @@ int main(){
     }
 
     return 0;
-}
+}*/
