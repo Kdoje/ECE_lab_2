@@ -70,7 +70,7 @@ extern tContext g_sContext;	// user defined type used by graphics library
 void configDisplay(void);
 void BuzzerOn(void);
 void BuzzerOff(void);
-
+void setLeds(unsigned char state);
 void configKeypad(void);
 unsigned char getKey(void);
 

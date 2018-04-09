@@ -57,9 +57,9 @@ void setLeds(unsigned char state)
     if (state & BIT1)
         mask |= BIT3;   // next most right LED P.3
     if (state & BIT2)
-        mask |= BIT1;   // third most left LED P6.1
+        mask |= BIT2;   // third most left LED P6.1
     if (state & BIT3)
-        mask |= BIT2;   // Left most LED on P6.2
+        mask |= BIT1;   // Left most LED on P6.2
     P6OUT |= mask;
 }
 
