@@ -334,6 +334,12 @@ void pump_ready(unsigned char grade)
                     topping_off = false;
                     finished = true;
                 }
+                /* this should be uncommneted to use the timer variant for finishing top off
+                 * if(millis>1000){
+                 *      topping_off=false;
+                 *      finished=true;
+                 *  }
+                 */
             }
         }
         else
@@ -379,6 +385,12 @@ void pump_ready(unsigned char grade)
                     topping_off = false;
                     finished = true;
                 }
+                /*
+                 * if(millis>1000){
+                 *      topping_off=false;
+                 *      finished=true;
+                 *  }
+                 */
             }
         }
     }
